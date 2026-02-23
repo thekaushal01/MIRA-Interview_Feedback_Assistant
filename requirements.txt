@@ -1,0 +1,7 @@
+gradio
+openai-whisper
+moviepy
+torch
+numpy
+imageio[ffmpeg]
+librosa
