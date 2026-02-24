@@ -3,5 +3,6 @@ openai-whisper
 moviepy
 torch
 numpy
-imageio[ffmpeg]
 librosa
+imageio-ffmpeg
+soundfile
