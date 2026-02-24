@@ -220,14 +220,42 @@ def analyze_video(video):
             os.remove(audio_path)
 
 
-# Gradio Interface
-iface = gr.Interface(
-    fn=analyze_video,
-    inputs=gr.File(label="Upload Interview Video (Max 2 min)", file_types=["video"]),
-    outputs=gr.Textbox(label="Mira's Feedback"),
-    title="Mira – AI Interview Feedback Assistant",
-    description="Upload a short interview video to receive AI-based communication feedback."
-)
+def preview_uploaded_video(video):
+    return resolve_video_path(video)
+
+
+def prepare_uploaded_video(video):
+    video_path = resolve_video_path(video)
+    file_name = os.path.basename(video_path) if video_path else ""
+    return video_path, video_path, file_name
+
+
+def clear_uploaded_video():
+    return None, None, "", ""
+
+
+# Gradio UI
+with gr.Blocks(title="Mira – AI Interview Feedback Assistant", fill_height=True) as app:
+    gr.Markdown("<h1 align='center'>Mira – AI Interview Feedback Assistant</h1>")
+    gr.Markdown("<p align='center'>Upload a short interview video to receive AI-based communication feedback.</p>")
+
+    with gr.Row(equal_height=True):
+        with gr.Column(scale=1):
+            gr.Markdown("### Upload Interview Video")
+            video_input = gr.UploadButton("Choose Video File", file_types=["video"], file_count="single", variant="primary")
+            selected_video = gr.Textbox(label="Selected File", value="", interactive=False)
+            video_preview = gr.Video(label="Video Preview", interactive=False, height=220)
+            video_state = gr.State(value=None)
+            with gr.Row():
+                analyze_button = gr.Button("Analyze Interview")
+                clear_button = gr.Button("Clear")
+
+        with gr.Column(scale=1):
+            feedback_output = gr.Textbox(label="Mira's Feedback", lines=20, max_lines=20)
+
+    video_input.upload(fn=prepare_uploaded_video, inputs=video_input, outputs=[video_preview, video_state, selected_video])
+    analyze_button.click(fn=analyze_video, inputs=video_state, outputs=feedback_output)
+    clear_button.click(fn=clear_uploaded_video, outputs=[video_preview, video_state, selected_video, feedback_output])
 
 if __name__ == "__main__":
-    iface.launch()
+    app.launch()
