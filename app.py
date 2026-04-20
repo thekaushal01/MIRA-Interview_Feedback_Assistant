@@ -88,9 +88,35 @@ def speech_rate(text, duration):
     return words / (duration / 60)
 
 
+# Preprocessing Module
+def preprocess_audio(waveform, sample_rate):
+    if waveform is None or len(waveform) == 0:
+        return waveform
+
+    cleaned = np.nan_to_num(waveform).astype(np.float32)
+
+    # Trim long silences so speech metrics are less biased.
+    cleaned, _ = librosa.effects.trim(cleaned, top_db=30)
+    if len(cleaned) == 0:
+        return waveform
+
+    # Normalize loudness safely to improve transcription consistency.
+    peak = float(np.max(np.abs(cleaned)))
+    if peak > 0:
+        cleaned = cleaned / peak
+
+    # Mild pre-emphasis to improve high-frequency speech details.
+    cleaned = librosa.effects.preemphasis(cleaned, coef=0.97)
+    return cleaned
+
+
 # Pitch Variation (Confidence Indicator)
-def pitch_variation(audio_path):
-    y, sr = librosa.load(audio_path)
+def pitch_variation(waveform, sample_rate):
+    if waveform is None or len(waveform) == 0:
+        return 0
+
+    y = np.nan_to_num(waveform).astype(np.float32)
+    sr = sample_rate
     pitches, magnitudes = librosa.piptrack(y=y, sr=sr)
     pitch_values = pitches[pitches > 0]
 
@@ -180,16 +206,23 @@ def analyze_video(video):
         return error
 
     try:
-        waveform, _ = librosa.load(audio_path, sr=16000, mono=True)
-        result = model.transcribe(waveform)
-        text = result["text"]
+        waveform, sample_rate = librosa.load(audio_path, sr=16000, mono=True)
+        processed_waveform = preprocess_audio(waveform, sample_rate)
+
+        result = model.transcribe(
+            processed_waveform,
+            fp16=False,
+            language="en",
+            condition_on_previous_text=False,
+        )
+        text = result.get("text", "")
 
         # Filler words
         fillers = ["um", "uh", "like", "you know", "basically", "actually"]
         filler_count = sum(len(re.findall(rf"\b{word}\b", text.lower())) for word in fillers)
 
         words_per_minute = speech_rate(text, duration)
-        pitch_std = pitch_variation(audio_path)
+        pitch_std = pitch_variation(processed_waveform, sample_rate)
 
         confidence_score = confidence_score_breakdown(
             text=text,
