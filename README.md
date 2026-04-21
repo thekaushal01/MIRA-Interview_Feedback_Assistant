@@ -1,16 +1,18 @@
 # Mira – Interview Feedback Assistant
 
-Mira is a lightweight AI-based interview feedback assistant that analyzes short interview videos for communication quality. It combines speech recognition and NLP to analyze communication clarity and confidence. 
+Mira is a lightweight AI-based interview feedback assistant that analyzes short interview videos for communication quality. It combines speech transcription and audio-feature heuristics to evaluate communication clarity and confidence.
 
 ## What Mira Does
 
-- Accepts a short interview video (up to 2 minutes)
+- Accepts a short interview video (up to 2 minutes)                             
 - Extracts audio from the video
+- Preprocesses audio (silence trimming, normalization, pre-emphasis)
 - Transcribes speech using Whisper (`tiny` model on CPU)
 - Calculates words-per-minute speaking rate
 - Detects common filler words
 - Measures pitch variation as a confidence indicator
 - Produces a confidence score out of 100 with a compact feedback summary
+- Shows a two-column UI with upload + video preview on the left and feedback on the right
 
 ## Tech Stack
 
@@ -40,18 +42,21 @@ Mira is a lightweight AI-based interview feedback assistant that analyzes short 
    - Audio track is extracted into a temporary `.wav` file.
 
 3. **Transcription**
-   - Whisper `tiny` model transcribes spoken content into text.
+   - Whisper `tiny` model transcribes preprocessed audio into text.
 
 4. **Communication metrics**
    - **Speech rate** = words per minute (WPM)
    - **Filler words** detected from: `um`, `uh`, `like`, `you know`, `basically`, `actually`
    - **Pitch variation** computed from pitch values using Librosa
+   - **Text clarity proxies** including repetition ratio and sentence-length patterns
 
 5. **Confidence scoring**
-   - Starts at `100`
-   - `-2` per filler word
-   - `-10` if WPM is too slow (`< 80`) or too fast (`> 170`)
-   - `-10` if pitch variation is low (`< 20`)
+   - Starts at `100` and applies weighted penalties:
+   - Pace bands (slow/fast speech)
+   - Filler count and filler density penalties
+   - Pitch variation range penalties (very low or unusually high)
+   - Short-response and short-sentence penalties
+   - Repetition-ratio penalties
    - Final score is clamped between `0` and `100`
 
 6. **Cleanup**
@@ -63,7 +68,7 @@ Mira is a lightweight AI-based interview feedback assistant that analyzes short 
 
 - Python 3.10+ recommended
 - `pip`
-- FFmpeg support (included via `imageio[ffmpeg]` dependency)
+- FFmpeg binary support via `imageio-ffmpeg` (installed through `requirements.txt`)
 
 ### Installation
 
@@ -103,6 +108,7 @@ Open the local Gradio URL shown in your terminal (typically `http://127.0.0.1:78
 - Very noisy audio may reduce transcription quality
 - First run can be slower while model/runtime assets initialize
 - Current model is optimized for lightweight local usage, not maximum transcription accuracy
+- UI is optimized for a compact single-screen workflow with upload, preview, and feedback side-by-side
 
 ## Limitations
 
